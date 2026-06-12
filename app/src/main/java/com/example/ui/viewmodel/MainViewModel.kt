@@ -34,64 +34,22 @@ class MainViewModel(
         id
     }
 
-    // Active media player status states
-    private val _playerState = MutableStateFlow("idle") // "playing", "paused", "idle"
-    val playerState: StateFlow<String> = _playerState.asStateFlow()
+    // Active media player status states delegated directly to background ReceiverManager
+    val playerState: StateFlow<String> = com.example.api.ReceiverManager.playerState
+    val volume: StateFlow<Int> = com.example.api.ReceiverManager.volume
+    val mediaTitle: StateFlow<String> = com.example.api.ReceiverManager.mediaTitle
+    val mediaSubtitle: StateFlow<String> = com.example.api.ReceiverManager.mediaSubtitle
+    val activeMediaUrl: StateFlow<String?> = com.example.api.ReceiverManager.activeMediaUrl
+    val mediaDuration: StateFlow<Int> = com.example.api.ReceiverManager.mediaDuration
+    val mediaPosition: StateFlow<Int> = com.example.api.ReceiverManager.mediaPosition
 
-    private val _volume = MutableStateFlow(70) // 0 to 100
-    val volume: StateFlow<Int> = _volume.asStateFlow()
-
-    private val _mediaTitle = MutableStateFlow("Ambient Screen")
-    val mediaTitle: StateFlow<String> = _mediaTitle.asStateFlow()
-
-    private val _mediaSubtitle = MutableStateFlow("Waiting for Home Assistant")
-    val mediaSubtitle: StateFlow<String> = _mediaSubtitle.asStateFlow()
-
-    private val _activeMediaUrl = MutableStateFlow<String?>(null)
-    val activeMediaUrl: StateFlow<String?> = _activeMediaUrl.asStateFlow()
-
-    private val _mediaDuration = MutableStateFlow(0)
-    val mediaDuration: StateFlow<Int> = _mediaDuration.asStateFlow()
-
-    private val _mediaPosition = MutableStateFlow(0)
-    val mediaPosition: StateFlow<Int> = _mediaPosition.asStateFlow()
-
-    private val _localIp = MutableStateFlow(ApiServer.getLocalIpAddress())
+    private val _localIp = MutableStateFlow(com.example.api.ApiServer.getLocalIpAddress())
     val localIp: StateFlow<String> = _localIp.asStateFlow()
 
-    private val _mqttConnected = MutableStateFlow(false)
-    val mqttConnected: StateFlow<Boolean> = _mqttConnected.asStateFlow()
-
-    private val _mqttError = MutableStateFlow<String?>(null)
-    val mqttError: StateFlow<String?> = _mqttError.asStateFlow()
-
-    private val _haConnected = MutableStateFlow(false)
-    val haConnected: StateFlow<Boolean> = _haConnected.asStateFlow()
-
-    private val _haError = MutableStateFlow<String?>(null)
-    val haError: StateFlow<String?> = _haError.asStateFlow()
-
-    // Command channels to communicate back to MainActivity (observed from MainActivity)
-    private val _actionPlay = MutableStateFlow<Long>(0)
-    val actionPlay: StateFlow<Long> = _actionPlay.asStateFlow()
-
-    private val _actionPause = MutableStateFlow<Long>(0)
-    val actionPause: StateFlow<Long> = _actionPause.asStateFlow()
-
-    private val _actionStop = MutableStateFlow<Long>(0)
-    val actionStop: StateFlow<Long> = _actionStop.asStateFlow()
-
-    private val _actionSetVolume = MutableStateFlow<Pair<Long, Int>>(0L to 70)
-    val actionSetVolume: StateFlow<Pair<Long, Int>> = _actionSetVolume.asStateFlow()
-
-    private val _actionPlayUrl = MutableStateFlow<Triple<Long, String, String>>(Triple(0L, "", ""))
-    val actionPlayUrl: StateFlow<Triple<Long, String, String>> = _actionPlayUrl.asStateFlow()
-
-    private val _actionTts = MutableStateFlow<Pair<Long, String>>(0L to "")
-    val actionTts: StateFlow<Pair<Long, String>> = _actionTts.asStateFlow()
-
-    private val _actionLaunchPkg = MutableStateFlow<Pair<Long, String>>(0L to "")
-    val actionLaunchPkg: StateFlow<Pair<Long, String>> = _actionLaunchPkg.asStateFlow()
+    val mqttConnected: StateFlow<Boolean> = com.example.api.ReceiverManager.mqttConnected
+    val mqttError: StateFlow<String?> = com.example.api.ReceiverManager.mqttError
+    val haConnected: StateFlow<Boolean> = com.example.api.ReceiverManager.haConnected
+    val haError: StateFlow<String?> = com.example.api.ReceiverManager.haError
 
     // Room configurations
     val appConfigFlow = repository.appConfig
@@ -108,7 +66,7 @@ class MainViewModel(
     }
 
     fun refreshIp() {
-        _localIp.value = ApiServer.getLocalIpAddress()
+        _localIp.value = com.example.api.ApiServer.getLocalIpAddress()
     }
 
     // Setters called from UI to update db
@@ -118,65 +76,57 @@ class MainViewModel(
         }
     }
 
-    // Callback handlers called by API Server & MQTT Service handlers
+    // Remote triggers routed to the background ReceiverManager singleton
     fun triggerPlayByRemote() {
-        _actionPlay.value = System.currentTimeMillis()
+        com.example.api.ReceiverManager.resumeActiveMediaPlayer()
     }
 
     fun triggerPauseByRemote() {
-        _actionPause.value = System.currentTimeMillis()
+        com.example.api.ReceiverManager.pauseActiveMediaPlayer()
     }
 
     fun triggerStopByRemote() {
-        _actionStop.value = System.currentTimeMillis()
+        com.example.api.ReceiverManager.stopActiveMediaPlayer()
     }
 
     fun triggerVolumeByRemote(vol: Int) {
-        _actionSetVolume.value = System.currentTimeMillis() to vol
+        com.example.api.ReceiverManager.setSystemVolume(vol)
     }
 
     fun triggerPlayMediaByRemote(url: String, title: String?, subtitle: String?) {
-        val finalTitle = title ?: "Streaming Media"
-        val finalSubtitle = subtitle ?: "Remote Stream"
-        _actionPlayUrl.value = Triple(System.currentTimeMillis(), url, "$finalTitle|$finalSubtitle")
+        com.example.api.ReceiverManager.playDirectMediaStream(url, title ?: "Streaming Media", subtitle ?: "Remote Stream")
     }
 
     fun triggerTtsByRemote(text: String) {
-        _actionTts.value = System.currentTimeMillis() to text
+        com.example.api.ReceiverManager.fireTextToSpeech(text)
     }
 
     fun triggerLaunchPkgByRemote(pkg: String) {
-        _actionLaunchPkg.value = System.currentTimeMillis() to pkg
+        com.example.api.ReceiverManager.launchExternalTVApp(pkg)
     }
 
-    // Update state called by actual visual player inside MainActivity once action starts
     fun updatePlayerState(state: String) {
-        _playerState.value = state
+        // Managed internally in ReceiverManager
     }
 
     fun updateVolume(level: Int) {
-        _volume.value = level
+        com.example.api.ReceiverManager.setSystemVolume(level)
     }
 
     fun updateMediaInfo(title: String, subtitle: String, url: String? = null) {
-        _mediaTitle.value = title
-        _mediaSubtitle.value = subtitle
-        _activeMediaUrl.value = url
+        // Handled internally in ReceiverManager
     }
 
     fun updateVideoProgress(positionSec: Int, durationSec: Int) {
-        _mediaPosition.value = positionSec
-        _mediaDuration.value = durationSec
+        // Handled internally in ReceiverManager
     }
 
     fun updateMqttStatus(connected: Boolean, errorMsg: String? = null) {
-        _mqttConnected.value = connected
-        _mqttError.value = errorMsg
+        // Handled internally in ReceiverManager
     }
 
     fun updateHaStatus(connected: Boolean, errorMsg: String? = null) {
-        _haConnected.value = connected
-        _haError.value = errorMsg
+        // Handled internally in ReceiverManager
     }
 
     // Log tracking inside SQLite DB
@@ -187,7 +137,7 @@ class MainViewModel(
                     type = "MEDIA",
                     title = title,
                     subtitle = subtitle,
-                    duration = if (_mediaDuration.value > 0) formatTime(_mediaDuration.value) else "Live"
+                    duration = if (mediaDuration.value > 0) formatTime(mediaDuration.value) else "Live"
                 )
             )
         }
