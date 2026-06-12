@@ -1,0 +1,6 @@
+{
+  "name": "Smart Receiver",
+  "description": "Transforma sua Android TV antiga em um media player e receptor inteligente controlado remotamente pelo Home Assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
